@@ -60,42 +60,83 @@ import { NForm, NFormItem, NInput, NButton, useMessage, NCheckbox, useDialog, NT
 import http from '../utils/axios'
 import { useRoute, useRouter } from 'vue-router'
 import { BrandGoogle, Phone } from '@vicons/tabler'
+
 const loginData = ref({
   username: '',
-  password: ''
+  password: '',
+  captcha_token: ''
 })
 const route  = useRoute()
 const loading = ref(false)
 const router = useRouter()
 const message = useMessage()
+
+// 32随机数
+const randomString = () =>  {
+    let len = 32;
+    let chars ='abcdefhijkmnprstwxyz2345678';
+    let maxPos = chars.length;
+    let character = '';
+    for (let i = 0; i < len; i++) {
+        character += chars.charAt(Math.floor(Math.random() * maxPos))
+    }
+    return character;
+}
+const deviceId = randomString()
+
+const initCaptcha = () => {
+  return http.post('https://user.mypikpak.com/v1/shield/captcha/init?client_id=YNxT9w7GMdWvEOKa', {
+    action: "POST:/v1/auth/signin",
+    captcha_token: '',
+    client_id: "YNxT9w7GMdWvEOKa",
+    device_id: deviceId,
+    meta: {
+      "username": loginData.value.username,
+    },
+    redirect_uri: "xlaccsdk01://xunlei.com/callback?state\u003dharbor"
+  })
+    .then((res:any) => {
+      if(res.data && res.data.captcha_token) {
+        loginData.value.captcha_token = res.data.captcha_token
+      }
+    })
+}
+
 const loginPost = () => {
   if(!loginData.value.password || !loginData.value.username) {
     return false
   }
   loading.value = true
-  http.post('https://user.mypikpak.com/v1/auth/signin', {
-    "captcha_token": "",
-    "client_id": "YNxT9w7GMdWvEOKa",
-    "client_secret": "dbw2OtmVEeuUvIptb1Coyg",
-    ...loginData.value
-  })
-    .then((res:any) => {
-      if(res.data && res.data.access_token) {
-        window.localStorage.setItem('pikpakLogin', JSON.stringify(res.data))
-        if(remember.value) {
-          window.localStorage.setItem('pikpakLoginData', JSON.stringify(loginData.value))
-        } else {
-          window.localStorage.removeItem('pikpakLoginData')
+  initCaptcha().then(() => {
+    http.post('https://user.mypikpak.com/v1/auth/signin', {
+      "client_id": "YNxT9w7GMdWvEOKa",
+      "client_secret": "dbw2OtmVEeuUvIptb1Coyg",
+      ...loginData.value
+    })
+      .then((res:any) => {
+        if(res.data && res.data.access_token) {
+          window.localStorage.setItem('pikpakLogin', JSON.stringify(res.data))
+          if(remember.value) {
+            window.localStorage.setItem('pikpakLoginData', JSON.stringify({username: loginData.value.username, password: loginData.value.password}))
+          } else {
+            window.localStorage.removeItem('pikpakLoginData')
+          }
+          message.success('登录成功')
+          router.push((route.query.redirect || '/') + '')
         }
-        message.success('登录成功')
-        router.push('/')
-        router.push((route.query.redirect || '/') + '')
-      }
-    })
-    .catch(() => {
-      loading.value = false
-    })
+      })
+      .catch(() => {
+        loading.value = false
+      })
+      .finally(() => {
+        // 不管成功与否，都重置token
+        loginData.value.captcha_token = '';
+      })
+  }).catch(() => {
+    loading.value = false
+  })
 }
+
 const remember = ref(false)
 const dialog = useDialog()
 const showMessage = () => {
