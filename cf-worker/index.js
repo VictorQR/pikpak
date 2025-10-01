@@ -1,135 +1,138 @@
-addEventListener('fetch', event => {
-    event.passThroughOnException()
-  
-    event.respondWith(handleRequest(event))
-  })
-  
-  /**
-  * Respond to the request
-  * @param {Request} request
-  */
-  async function handleRequest(event) {
-    const { request } = event;
-  
-    //请求头部、返回对象
-    let reqHeaders = new Headers(request.headers),
-        outBody, outStatus = 200, outStatusText = 'OK', outCt = null, outHeaders = new Headers({
-            "Access-Control-Allow-Origin": reqHeaders.get('Origin'),
-            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": reqHeaders.get('Access-Control-Allow-Headers') || "Accept, Authorization, Cache-Control, Content-Type, DNT, If-Modified-Since, Keep-Alive, Origin, User-Agent, X-Requested-With, Token, x-access-token, Notion-Version"
-        });
-  
+const PREFLIGHT_INIT = {
+    status: 204,
+    headers: new Headers({
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+        "access-control-allow-headers": "Accept, Authorization, Cache-Control, Content-Type, DNT, If-Modified-Since, Keep-Alive, Origin, User-Agent, X-Requested-With, Token, x-access-token, Notion-Version",
+    }),
+};
+
+// 使用Set以获得更好的性能
+const BLOCKED_EXTENSIONS = new Set([
+    ".m3u8",
+    ".ts",
+    ".acc",
+    ".m4s",
+]);
+const BLOCKED_DOMAINS = new Set([
+    "photocall.tv",
+    "googlevideo.com",
+    "xunleix.com"
+]);
+
+// 增加域名白名单
+const ALLOWED_DOMAINS = new Set([
+    // 在这里添加你允许代理的域名，例如：
+    // "example.com",
+    // "api.example.com",
+]);
+
+
+function isUrlBlocked(url) {
+    const lowercasedUrl = url.toLowerCase();
+    for (const ext of BLOCKED_EXTENSIONS) {
+        if (lowercasedUrl.endsWith(ext)) {
+            return true;
+        }
+    }
+    for (const domain of BLOCKED_DOMAINS) {
+        if (lowercasedUrl.includes(domain)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+async function handleRequest(event) {
+    const {
+        request
+    } = event;
+
+    const reqHeaders = new Headers(request.headers);
+    const outHeaders = new Headers({
+        "Access-Control-Allow-Origin": reqHeaders.get("Origin") || "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": reqHeaders.get("Access-Control-Allow-Headers") || "Accept, Authorization, Cache-Control, Content-Type, DNT, If-Modified-Since, Keep-Alive, Origin, User-Agent, X-Requested-With, Token, x-access-token, Notion-Version",
+    });
+
+    if (request.method === "OPTIONS") {
+        return new Response(null, PREFLIGHT_INIT);
+    }
+
     try {
-        //取域名第一个斜杠后的所有信息为代理链接
-        let url = request.url.substr(8);
-        url = decodeURIComponent(url.substr(url.indexOf('/') + 1));
-  
-        //需要忽略的代理
-        if (request.method == "OPTIONS" && reqHeaders.has('access-control-request-headers')) {
-            //输出提示
-            return new Response(null, PREFLIGHT_INIT)
+        const urlString = decodeURIComponent(request.url.split('/').slice(3).join('/'));
+        
+        if (urlString.length < 3 || urlString.indexOf('.') === -1 || urlString === "favicon.ico" || urlString === "robots.txt") {
+            return Response.redirect('https://baidu.com', 301);
         }
-        else if(url.length < 3 || url.indexOf('.') == -1 || url == "favicon.ico" || url == "robots.txt") {
-            return Response.redirect('https://baidu.com', 301)
-        }
-        //阻断
-        else if (blocker.check(url)) {
-            return Response.redirect('https://baidu.com', 301)
-        }
-        else {
-            //补上前缀 http://
-            url = url.replace(/https:(\/)*/,'https://').replace(/http:(\/)*/, 'http://')
-            if (url.indexOf("://") == -1) {
-                url = "http://" + url;
-            }
-            //构建 fetch 参数
-            let fp = {
-                method: request.method,
-                headers: {}
-            }
-  
-            //保留头部其它信息
-            let he = reqHeaders.entries();
-            for (let h of he) {
-                if (!['content-length'].includes(h[0])) {
-                    fp.headers[h[0]] = h[1];
-                }
-            }
-            // 是否带 body
-            if (["POST", "PUT", "PATCH", "DELETE"].indexOf(request.method) >= 0) {
-                const ct = (reqHeaders.get('content-type') || "").toLowerCase();
-                if (ct.includes('application/json')) {
-                      let requestJSON = await request.json()
-                      console.log(typeof requestJSON)
-                    fp.body = JSON.stringify(requestJSON);
-                } else if (ct.includes('application/text') || ct.includes('text/html')) {
-                    fp.body = await request.text();
-                } else if (ct.includes('form')) {
-                    fp.body = await request.formData();
-                } else {
-                    fp.body = await request.blob();
-                }
-            }
-            // 发起 fetch
-            let fr = (await fetch(new URL(url), fp));
-            outCt = fr.headers.get('content-type');
-            if(outCt && (outCt.includes('application/text') || outCt.includes('text/html'))) {
-              try {
-                // 添加base
-                let newFr = new HTMLRewriter()
-                .on("head", {
-                  element(element) {
-                    element.prepend(`<base href="${url}" />`, {
-                      html: true
-                    })
-                  },
-                })
-                .transform(fr)
-                fr = newFr
-              } catch(e) {
-              }
-            }
 
-            for (const [key, value] of fr.headers.entries()) {
-              outHeaders.set(key, value);
-            }
-
-            outStatus = fr.status;
-            outStatusText = fr.statusText;
-            outBody = fr.body;
+        if (isUrlBlocked(urlString)) {
+            return Response.redirect('https://baidu.com', 301);
         }
+
+        const url = new URL(urlString.startsWith('http') ? urlString : 'http://' + urlString);
+
+        // 如果启用了白名单，则检查域名
+        if (ALLOWED_DOMAINS.size > 0 && !ALLOWED_DOMAINS.has(url.hostname)) {
+            return new Response("Domain not allowed", { status: 403 });
+        }
+
+
+        const fp = {
+            method: request.method,
+            headers: new Headers(reqHeaders),
+        };
+
+        fp.headers.delete('content-length');
+
+        if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) {
+            fp.body = request.body;
+        }
+
+        let fr = await fetch(new Request(url, fp));
+
+        for (const [key, value] of fr.headers.entries()) {
+            outHeaders.set(key, value);
+        }
+
+        const outCt = fr.headers.get('content-type') || '';
+        let outBody = fr.body;
+        
+        if (outCt.includes('text/html')) {
+            try {
+                const rewriter = new HTMLRewriter().on("head", {
+                    element(element) {
+                        element.prepend(`<base href="${url.origin}" />`, {
+                            html: true
+                        });
+                    },
+                });
+                outBody = rewriter.transform(fr).body;
+            } catch (e) {
+                // 如果HTMLRewriter失败，则返回原始响应
+            }
+        }
+        
+        return new Response(outBody, {
+            status: fr.status,
+            statusText: fr.statusText,
+            headers: outHeaders,
+        });
+
     } catch (err) {
-        outCt = "application/json";
-        outBody = JSON.stringify({
+        return new Response(JSON.stringify({
             code: -1,
-            msg: JSON.stringify(err.stack) || err
+            msg: err.stack || err.toString(),
+        }), {
+            status: 500,
+            headers: {
+                "content-type": "application/json"
+            }
         });
     }
-  
-    //设置类型
-    if (outCt && outCt != "") {
-        outHeaders.set("content-type", outCt);
-    }
-  
-    let response = new Response(outBody, {
-        status: outStatus,
-        statusText: outStatusText,
-        headers: outHeaders
-    })
-  
-    return response;
-  
-    // return new Response('OK', { status: 200 })
-  }
-  
-  /**
-  * 阻断器
-  */
-  const blocker = {
-    keys: [".m3u8", ".ts", ".acc", ".m4s", "photocall.tv", "googlevideo.com", "xunleix.com"],
-    check: function (url) {
-        url = url.toLowerCase();
-        let len = blocker.keys.filter(x => url.includes(x)).length;
-        return len != 0;
-    }
-  }
+}
+
+addEventListener('fetch', event => {
+    event.passThroughOnException();
+    event.respondWith(handleRequest(event));
+});
