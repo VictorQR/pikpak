@@ -1,0 +1,81 @@
+/* --- Frosted Glass Theme for PikPak Web --- */
+
+/* 1. Frosted Glass Components */
+
+/* Sidebar */
+.n-layout-sider {
+    background-color: rgba(245, 245, 245, 0.6) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Main Content Area Header */
+.header {
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+}
+
+/* Data Table */
+.n-data-table {
+    --merged-th-color: rgba(240, 240, 245, 0.7) !important;
+    --merged-td-color: rgba(255, 255, 255, 0.4) !important;
+    --merged-td-color-hover: rgba(240, 240, 245, 0.6) !important;
+    --merged-border-color: transparent !important;
+}
+
+/* Cards, Modals, Popups, Dialogs */
+.n-card, .n-modal, .n-popover, .n-dialog, .n-collapse {
+    background-color: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 16px !important;
+}
+
+/* Login Page Box */
+.login-page .login-box {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+}
+
+/* Bottom Toolbar */
+.toolbar-wrapper {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+}
+.toolbar-item {
+    color: #333;
+}
+
+/* 2. Unified Rounded Corners */
+.n-scrollbar, .n-row {
+    border-radius: 12px;
+}
+.n-row {
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+}
+
+/* 3. General Adjustments */
+.n-layout, .login-page {
+    background: initial !important;
+}
+.sider-bottom {
+    background-color: transparent !important;
+}
+.sider-bottom.vip {
+    background-color: rgba(244, 237, 219, 0.4) !important;
+}
+.n-menu {
+    background: transparent !important;
+}
