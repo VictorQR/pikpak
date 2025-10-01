@@ -4,6 +4,7 @@ import router from './router'
 import http from './utils/axios'
 import elementResizeDetectorMaker from 'element-resize-detector'
 import cnzzAnalytics from 'vue-cnzz-analytics'
+import './moe.css'
 
 const app = createApp(App)
 app.directive('resize', {
